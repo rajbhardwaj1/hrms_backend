@@ -93,11 +93,12 @@ WSGI_APPLICATION = 'config.wsgi.application'
 #     }
 # }
 # Use the DATABASE_URL environment variable if it exists
+
 DATABASES = {
-    'default': dj_database_url.config(
-        default=os.environ.get('DATABASE_URL'),
+    "default": dj_database_url.config(
+        default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
         conn_max_age=600,
-        ssl_require=True
+        ssl_require=not DEBUG,
     )
 }
 
@@ -135,7 +136,8 @@ USE_TZ = True
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
-CORS_ALLOW_ALL_ORIGINS = env.list("CORS_ALLOW_ALL_ORIGINS")
+
+CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOWED_ORIGINS = env.list("CORS_ALLOWED_ORIGINS")
 
 REST_FRAMEWORK = {
@@ -149,20 +151,30 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+LOG_DIR = BASE_DIR / "logs"
+LOG_DIR.mkdir(parents=True, exist_ok=True)
+
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
+
     "handlers": {
         "console": {
             "class": "logging.StreamHandler",
         },
         "file": {
             "class": "logging.FileHandler",
-            "filename": BASE_DIR / "logs/hrms.log",
+            "filename": LOG_DIR / "hrms.log",
+            "level": env("LOG_LEVEL"),
         },
     },
+
     "root": {
         "handlers": ["console", "file"],
         "level": env("LOG_LEVEL"),
     },
 }
+
