@@ -1,3 +1,4 @@
+import logging
 from django.db import IntegrityError
 from rest_framework import generics, status
 from rest_framework.response import Response
@@ -6,16 +7,16 @@ from rest_framework.exceptions import ValidationError
 
 from .models import Attendance
 from .serializers import AttendanceSerializer
-import logging
 
 logger = logging.getLogger(__name__)
 
 
 class AttendanceListCreateView(generics.ListCreateAPIView):
     """
-    GET  -> List attendance (supports ?date=YYYY-MM-DD)
+    GET  -> List attendance records (?date=YYYY-MM-DD)
     POST -> Mark attendance
     """
+
     serializer_class = AttendanceSerializer
     queryset = Attendance.objects.select_related("employee").all()
 
@@ -36,7 +37,8 @@ class AttendanceListCreateView(generics.ListCreateAPIView):
             attendance = serializer.save()
 
             logger.info(
-                f"Attendance marked: {attendance.employee.employee_id} "
+                f"Attendance marked: "
+                f"{attendance.employee.employee_id} "
                 f"{attendance.date} {attendance.status}"
             )
 
@@ -52,8 +54,8 @@ class AttendanceListCreateView(generics.ListCreateAPIView):
         except ValidationError as e:
             return Response(e.detail, status=status.HTTP_400_BAD_REQUEST)
 
-        except Exception as e:
-            logger.exception("Unhandled exception")
+        except Exception:
+            logger.exception("Unhandled exception while marking attendance")
             return Response(
                 {"error": "Internal server error"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -68,18 +70,25 @@ class AttendanceSummaryView(APIView):
     def get(self, request):
         summary = {}
 
-        records = Attendance.objects.filter(status="Present").select_related("employee")
+        records = (
+            Attendance.objects
+            .filter(status="Present")
+            .select_related("employee")
+        )
 
         for record in records:
-            emp = record.employee
-            summary.setdefault(
-                emp.employee_id,
-                {
-                    "employee_id": emp.employee_id,
-                    "name": emp.full_name,
+            if not record.employee:
+                continue  # safety for deleted employees
+
+            emp_id = record.employee.employee_id
+
+            if emp_id not in summary:
+                summary[emp_id] = {
+                    "employee_id": emp_id,
+                    "employee_name": record.employee.full_name,
                     "present_days": 0,
-                },
-            )
-            summary[emp.employee_id]["present_days"] += 1
+                }
+
+            summary[emp_id]["present_days"] += 1
 
         return Response(list(summary.values()), status=status.HTTP_200_OK)
