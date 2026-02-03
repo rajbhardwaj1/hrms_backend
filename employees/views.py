@@ -8,6 +8,7 @@ from .serializers import EmployeeSerializer
 
 logger = logging.getLogger(__name__)
 
+
 class EmployeeListCreateView(APIView):
     def get(self, request):
         employees = Employee.objects.all().order_by("-created_at")
@@ -32,12 +33,17 @@ class EmployeeDeleteView(APIView):
     def delete(self, request, employee_id):
         try:
             employee = Employee.objects.get(employee_id=employee_id)
+
+            # ✅ DO NOT manually check attendance
+            # Attendance is deleted automatically via CASCADE
             employee.delete()
+
             logger.info(f"Employee {employee_id} deleted")
             return Response(
                 {"message": "Employee deleted"},
                 status=status.HTTP_204_NO_CONTENT,
             )
+
         except Employee.DoesNotExist:
             logger.warning(f"Delete failed. Employee {employee_id} not found")
             return Response(
